@@ -38,10 +38,10 @@ You can provide exclusionary filters with `-v`:
 | stg-database-config-server-i-153dc5e9 | 10.0.1.2  |
 | stg-database-config-server-i-1d21dcf5 | 10.0.1.2  |
 | stg-database-config-server-i-2bd0d1c5 | 10.0.1.2  |
-+---------------------------------------|-----------+ 
++---------------------------------------|-----------+
 ```
 
-The table by default will consist only of machine names and public IPs. You 
+The table by default will consist only of machine names and public IPs. You
 can pull up additional information by passing the `--show` argument:
 
 
@@ -61,7 +61,7 @@ can pull up additional information by passing the `--show` argument:
 +---------------------------------------|-----------|------------+
 ```
 
-You can see all of the things that are available to show by requesting 
+You can see all of the things that are available to show by requesting
 `--attributes`:
 
 ```
@@ -210,3 +210,13 @@ filters=stg,database,data
 
 Then the `lsi -p stg-database` command will be equivalent to the above.
 
+
+## Installation
+
+
+#### Via `pip`:
+
+
+```bash
+$ pip install lsi
+```

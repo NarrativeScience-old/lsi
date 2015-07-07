@@ -3,7 +3,7 @@ import os
 
 setuptools.setup(
     name='lsi',
-    version='0.0.1',
+    version='0.0.2',
     package_dir={'': 'src'},
     packages=setuptools.find_packages('src'),
     provides=setuptools.find_packages('src'),

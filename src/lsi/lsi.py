@@ -1,16 +1,16 @@
 # Copyright (c) 2015, Narrative Science
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,7 +21,7 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 #!/usr/bin/env python
 
 """
@@ -64,6 +64,7 @@ from ConfigParser import ConfigParser
 import os
 from os.path import dirname, join, expanduser, exists
 import subprocess
+import sys
 
 from utils.hosts import HostEntry, get_entries, filter_entries, get_host
 from utils.term import (green, yellow, cyan, blue, get_input)
@@ -203,9 +204,6 @@ def _run_ssh(entries, username, idfile, no_prompt=False,
     :type sort_by: ``str``
     :param limit: At most how many results to show.
     :type limit: ``int`` or ``NoneType``
-
-    :return: An exit status code.
-    :rtype: ``int``
     """
     _print_entries = True
     _print_help = False
@@ -323,7 +321,10 @@ def _get_path(cmd):
     if cmd in _PATHS:
         return _PATHS[cmd]
     proc = subprocess.Popen('which ' + cmd, shell=True, stdout=subprocess.PIPE)
-    out, _ = proc.communicate()
+    out, err = proc.communicate()
+    if proc.wait() != 0:
+        raise IOError('Lookup of path to command {0} failed{1}'
+                      .format(repr(cmd), '' if err is None else ': ' + err))
     _PATHS[cmd] = out.strip()
     return _PATHS[cmd]
 
@@ -460,7 +461,6 @@ def _copy_from(entries, remote_path, local_path, profile):
     print green('Finished copying')
 
 
-
 def _run_ssh_command(entries, username, idfile, command):
     """
     Runs the given command over SSH in parallel on all hosts in `entries`.
@@ -473,9 +473,6 @@ def _run_ssh_command(entries, username, idfile, command):
     :type idfile: ``str`` or ``NoneType``
     :param command: The command to run.
     :type command: ``str``
-
-    :return: Zero if all commands exit with status 0, else 1.
-    :rtype: ``int``
     """
     if len(entries) == 0:
         print '(No hosts to run command on)'
@@ -494,7 +491,6 @@ def _run_ssh_command(entries, username, idfile, command):
         })
     stream_commands(shell_cmds, hash_colors=True)
     print green('All commands finished')
-    return 0
 
 
 def _connect_ssh(entry, username, idfile):
@@ -573,7 +569,7 @@ def _get_args():
     return args
 
 
-def main():
+def main(progname=sys.argv[0]):
     args = _get_args()
     profile = LsiProfile.from_args(args)
     if args.host is not None:

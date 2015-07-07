@@ -1,16 +1,16 @@
 # Copyright (c) 2015, Narrative Science
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,7 +21,7 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 import os
 import shlex
 import subprocess
@@ -48,8 +48,12 @@ def stream_command(command, formatter=None, write_stdin=None, ignore_empty=False
     :type ignore_empty: ``bool``
     """
     command_list = shlex.split(command)
-    proc = subprocess.Popen(command_list, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+    try:
+        proc = subprocess.Popen(command_list, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+    except Exception as e:
+        raise IOError('Encountered error: {0} when running command {1}'
+                      .format(e.message, ' '.join(command_list)))
     if write_stdin is not None:
         proc.stdin.write(write_stdin)
         proc.stdin.flush()
@@ -84,7 +88,7 @@ def stream_command_dicts(commands):
         thread.start()
         threads.append(thread)
     for t in threads:
-        t.join()    
+        t.join()
 
 
 def _format_with_description(description):
@@ -96,7 +100,7 @@ def _format_with_description(description):
 def stream_commands(commands, randomize_colors=False, hash_colors=False):
     """
     Runs multiple commands in parallel. Each command should be either a string,
-    a list of strings, or a dictionary with a 'command' key and optionally 
+    a list of strings, or a dictionary with a 'command' key and optionally
     'description' and 'write_stdin' keys.
     """
     def _get_color(string):

@@ -1,16 +1,16 @@
 # Copyright (c) 2015, Narrative Science
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,7 +21,7 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 import inspect
 import json
 import os
@@ -55,12 +55,13 @@ class HostEntry(object):
         'private_ip': 'Private IP',
         'public_ip': 'Public IP',
         'instance_type': 'Instance Type',
-        'launch_time': 'Launch Time'
+        'launch_time': 'Launch Time',
+        'instance_id': 'Instance ID'
     }
 
     def __init__(self, name, instance_type, hostname, private_ip, public_ip,
                  stack_name, logical_id, stack_id, security_groups, tags,
-                 ami_id, launch_time):
+                 ami_id, launch_time, instance_id):
         #: The instance name of the host.
         self.name = name
         #: The instance type of the host.
@@ -71,6 +72,8 @@ class HostEntry(object):
         self.private_ip = private_ip
         #: The public (internet) IP of the host.
         self.public_ip = public_ip
+        #: The AWS ID for this instance.
+        self.instance_id = instance_id
         #: The name of the stack this instance is part of.
         self.stack_name = stack_name
         #: The ID of that stack.
@@ -190,6 +193,7 @@ class HostEntry(object):
             private_ip=instance.private_ip_address,
             public_ip=instance.ip_address,
             instance_type=instance.instance_type,
+            instance_id=instance.id,
             hostname=instance.dns_name,
             stack_id=instance.tags.get('aws:cloudformation:stack-id'),
             stack_name=instance.tags.get('aws:cloudformation:stack-name'),

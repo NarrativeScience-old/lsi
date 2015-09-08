@@ -515,11 +515,20 @@ def _connect_ssh(entry, username, idfile):
     return proc.wait()
 
 
+def _print_version():
+    """Print the version and exit."""
+    from __init__ import __version__
+    print __version__
+    sys.exit(0)
+
+
 def _get_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description='List EC2 instances')
     parser.add_argument('-l', '--latest', action='store_true', default=False,
                         help='Query AWS for latest instances')
+    parser.add_argument('--version', action='store_true', default=False,
+                        help='Print version and exit')
     parser.add_argument('--refresh-only', action='store_true', default=False,
                         help='Refresh cache and exit')
     parser.add_argument('--host', help='Specific host to list',
@@ -577,6 +586,8 @@ def main(progname=sys.argv[0]):
     # Either of these directives should force a refresh.
     latest = args.latest or args.refresh_only
     entries = get_entries(latest, profile.filters, profile.exclude)
+    if args.version is True:
+        _print_version()
     if args.refresh_only is True:
         print('Refreshed cache')
         return

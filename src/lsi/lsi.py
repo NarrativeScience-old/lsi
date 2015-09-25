@@ -66,7 +66,7 @@ from os.path import dirname, join, expanduser, exists
 import subprocess
 import sys
 
-from utils.ansiblelsi import build_inventory, run_playbook, run_module
+from utils.ansible_lsi import build_inventory, run_playbook, run_module
 from utils.hosts import HostEntry, get_entries, filter_entries, get_host
 from utils.term import (green, yellow, cyan, blue, get_input)
 from utils.system import get_current_username

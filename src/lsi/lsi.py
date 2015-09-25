@@ -66,6 +66,7 @@ from os.path import dirname, join, expanduser, exists
 import subprocess
 import sys
 
+from utils.ansiblelsi import build_inventory, run_playbook, run_module
 from utils.hosts import HostEntry, get_entries, filter_entries, get_host
 from utils.term import (green, yellow, cyan, blue, get_input)
 from utils.system import get_current_username
@@ -529,6 +530,14 @@ def _get_args():
                         help='Query AWS for latest instances')
     parser.add_argument('--version', action='store_true', default=False,
                         help='Print version and exit')
+    parser.add_argument('--ansible', action='store_true', default=None,
+                        help='Format output as ansible inventory')
+    parser.add_argument('--playbook', type=str,
+                        help='Ansible playbook to run on hosts')
+    parser.add_argument('--module', type=str,
+                        help='Ansible module to run on hosts')
+    parser.add_argument('--params', nargs='+', default=None,
+                        help='Parameters to pass to ansible module')
     parser.add_argument('--refresh-only', action='store_true', default=False,
                         help='Refresh cache and exit')
     parser.add_argument('--host', help='Specific host to list',
@@ -612,6 +621,31 @@ def main(progname=sys.argv[0]):
         attribs = HostEntry.list_attributes()
         print 'The following attributes are available: {}'\
                     .format(', '.join(attribs))
+    elif args.ansible is not None:
+        latest = True
+        d = {}
+        if profile.filters > 1:
+            query_group = '-'.join(profile.filters)
+            d[query_group] = []
+        elif profile.filters == 1:
+            query_group = profile.filters
+            d[query_group] = []
+        else:
+            query_group = 'all'
+            d[query_group] = []
+        for i in HostEntry.ansible_render_entries(entries, additional_columns=args.show,
+                                                only_show=args.only):
+            d[query_group].append(i)
+        if args.playbook is not None:
+            inv_file = build_inventory(d,query_group)
+            result = run_playbook(inv_file,args.playbook,query_group)
+        elif args.module is not None:
+            inv_file = build_inventory(d,query_group)
+            result = run_module(inv_file, query_group, args.module,
+                            module_params=args.params)
+            print result
+        else:
+            print d
     else:
         if args.sort_by is not None:
             entries = HostEntry.sort_by(entries, args.sort_by)
@@ -619,7 +653,6 @@ def main(progname=sys.argv[0]):
             entries = entries[:args.limit]
         print HostEntry.render_entries(entries, additional_columns=args.show,
                                        only_show=args.only)
-        print '%s matching entries.' % len(entries)
 
 if __name__ == '__main__':
     main()

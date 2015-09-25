@@ -653,6 +653,7 @@ def main(progname=sys.argv[0]):
             entries = entries[:args.limit]
         print HostEntry.render_entries(entries, additional_columns=args.show,
                                        only_show=args.only)
+        print '%s matching entries.' % len(entries)
 
 if __name__ == '__main__':
     main()

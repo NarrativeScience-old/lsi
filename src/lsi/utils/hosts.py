@@ -35,6 +35,7 @@ import boto
 from term import (green, yellow, cyan, red, blue, get_input, get_color_hash,
                   get_current_terminal_width)
 from table import render_table, get_table_width
+from tempfile import NamedTemporaryFile
 
 # Location to read results from/write results to.
 CACHE_LOCATION = expanduser(os.environ.get('LSI_CACHE', '~/.lsi_cache.json'))
@@ -47,6 +48,7 @@ class HostEntry(object):
     """A selection of information about a host."""
     # Default columns to show in a representation.
     DEFAULT_COLUMNS = ['name', 'public_ip']
+    HOSTNAME = ['hostname']
 
     # Maps attribute names to their "pretty" names for use in display.
     COLUMN_NAMES = {
@@ -334,6 +336,43 @@ class HostEntry(object):
                     rep.append('  %s: %s' % (name, color(val)))
                 result.append('\n'.join(rep))
             return '\n'.join(result)
+
+    @classmethod
+    def ansible_render_entries(cls, entries, only_show=None,
+                            additional_columns=None, numbers=False):
+        '''
+        Prints dictionary (JSON) of output
+
+        :param entries: A list of entries.
+        :type entries: [:py:class:`HostEntry`]
+        :param additional_columns: Columns to show in addition to defaults.
+        :type additional_columns: ``list`` of ``str``
+        :param only_show: A specific list of columns to show.
+        :type only_show: ``NoneType`` or ``list`` of ``str``
+        :param numbers: Whether to include a number column.
+        :type numbers: ``bool``
+
+        :return: A JSON document.
+        :rtype: ``dict``
+        '''
+        additional_columns = additional_columns or []
+        if only_show is not None:
+            columns = _uniquify(only_show)
+        else:
+            columns = _uniquify(cls.HOSTNAME)
+        top_row = map(cls.prettyname, columns)
+        table = [top_row] if numbers is False else [[''] + top_row]
+        for i, entry in enumerate(entries):
+            row = [entry._get_attrib(c, convert_to_str=True) for c in columns]
+            table.append(row if numbers is False else [i] + row)
+        first_index = 1 if numbers is True else 0
+        result = []
+        for row in table[1:]:
+            rep = ''
+            for i, val in enumerate(row[first_index:]):
+                rep = val
+            result.append(rep)
+        return result
 
 
 def _uniquify(_list):

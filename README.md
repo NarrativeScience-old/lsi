@@ -210,6 +210,77 @@ filters=stg,database,data
 
 Then the `lsi -p stg-database` command will be equivalent to the above.
 
+#### Printing JSON output
+
+You can print JSON output with `lsi` by passing through the `--ansible` option with no other ansible specific options. The ansible options include `--playbook` and `--module`. `--module` can take the optional `--params`.
+
+`lsi` will format the search filters for use as the key in the dictionary. If multiple filters are provided, they are combined into a single string.
+
+#### Running ansible modules (ad hoc) across instances
+
+You can use `lsi` to generate dynamic inventories which it then passes to an ansible handler for execution. To do this, the `--ansible` and `--module` options should be specified. `--params` can be optionally specified as parameters passed to the selected module.
+
+```
+> lsi database --ansible --module ping
+{
+    "contacted": {
+        "ec2-W-X-Y-Z.compute-1.amazonaws.com": {
+            "changed": false,
+            "invocation": {
+                "module_args": "",
+                "module_complex_args": {},
+                "module_name": "ping"
+            },
+            "ping": "pong"
+        }
+    },
+    "dark": {}
+}
+```
+
+`--params` should be used with modules that require parameters
+
+```
+> lsi database --ansible --module command --params 'uptime'
+{
+    "contacted": {
+        "ec2-W-X-Y-Z.compute-1.amazonaws.com": {
+            "changed": true,
+            "cmd": [
+                "uptime"
+            ],
+            "delta": "0:00:00.010868",
+            "end": "xxxx-xx-xx xx:xx:xx.xxxxxx",
+            "invocation": {
+                "module_args": "uptime",
+                "module_complex_args": {},
+                "module_name": "command"
+            },
+            "rc": 0,
+            "start": "xxxx-xx-xx xx:xx:xx.xxxxxx",
+            "stderr": "",
+            "stdout": " 00:00:00 up 23:00,  1 user,  load average: 0.00, 0.01, 0.05",
+            "warnings": []
+        }
+    },
+    "dark": {}
+}
+```
+#### Running ansible playbooks across instances
+
+You can also use `lsi` to run playbooks across a dynamically generated inventory by passing through the `--ansible` and `--playbook` options. The `--playbook` option should be followed by the target playbook.
+
+```
+> lsi database --ansible --playbook /path/to/playbook.yaml
+
+PLAY [all] ********************************************************************
+
+GATHERING FACTS ***************************************************************
+ok: [ec2-W-X-Y-Z.compute-1.amazonaws.com]
+
+TASK: [create a test_file in ~] ******************************
+changed: [ec2-W-X-Y-Z.compute-1.amazonaws.com]
+```
 
 ## Installation
 

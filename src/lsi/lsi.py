@@ -623,29 +623,27 @@ def main(progname=sys.argv[0]):
                     .format(', '.join(attribs))
     elif args.ansible is not None:
         latest = True
-        d = {}
+        inventory_list = {}
         if profile.filters > 1:
             query_group = '-'.join(profile.filters)
-            d[query_group] = []
         elif profile.filters == 1:
             query_group = profile.filters
-            d[query_group] = []
         else:
-            query_group = ''
-            d[query_group] = []
+            query_group = 'all'
+        inventory_list[query_group] = []
         for i in HostEntry.ansible_render_entries(entries, additional_columns=args.show,
                                                 only_show=args.only):
-            d[query_group].append(i)
+            inventory_list[query_group].append(i)
         if args.playbook is not None:
-            inv_file = build_inventory(d,query_group)
-            result = run_playbook(inv_file,args.playbook,query_group)
+            inv_file = build_inventory(inventory_list, query_group)
+            result = run_playbook(inv_file, args.playbook, query_group)
         elif args.module is not None:
-            inv_file = build_inventory(d,query_group)
-            result = run_module(inv_file, query_group, args.module,
-                            module_params=args.params)
+            inv_file = build_inventory(inventory_list, query_group)
+            result = run_module(
+                inv_file, query_group, args.module, module_params=args.params)
             print result
         else:
-            print d
+            print inventory_list
     else:
         if args.sort_by is not None:
             entries = HostEntry.sort_by(entries, args.sort_by)

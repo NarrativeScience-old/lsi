@@ -23,13 +23,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+import json
+import os
+
 import ansible.playbook
 import ansible.runner
 import ansible.inventory
 from ansible import callbacks
 from ansible import utils
-import json
-import os
 
 utils.VERBOSITY = 0
 stats = callbacks.AggregateStats()
@@ -48,14 +49,12 @@ def build_inventory(inventory_dict, query_group):
     :return: Inventory file name
     :rtype: ``str``
     '''
-    _INVENTORY_FILE = os.path.expanduser('~/.lsi-ansible-inventory')
-    inventory_file = _INVENTORY_FILE
+    inventory_file = os.path.expanduser('~/.lsi-ansible-inventory')
     with open(inventory_file, 'w+') as f:
         for key in inventory_dict.iterkeys():
-            f.write('['+key+']\n')
+            f.write('[{}]\n'.format(key))
         for val in inventory_dict.itervalues():
             f.write('\n'.join(val))
-            #print('\n'.join(inventory_dict[query_group]))
         f.write('\n')
     return inventory_file
 
@@ -76,8 +75,6 @@ def run_playbook(inventory_file,playbook_file,subset):
     inv = ansible.inventory.Inventory(inventory_file)
     inv.subset(subset)
     inv.set_playbook_basedir(os.path.dirname(playbook_file))
-    hosts = inv.list_hosts(subset)
-    failed_hosts = list()
     
     pb = ansible.playbook.PlayBook(
         inventory = inv,
@@ -108,8 +105,6 @@ def run_module(inventory_file, subset, module, module_params=None):
     '''
     inv = ansible.inventory.Inventory(inventory_file)
     inv.subset(subset)
-    hosts = inv.list_hosts(subset)
-    failed_hosts = list()
 
     if module_params is not None:
         runner = ansible.runner.Runner(

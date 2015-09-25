@@ -631,7 +631,7 @@ def main(progname=sys.argv[0]):
             query_group = profile.filters
             d[query_group] = []
         else:
-            query_group = 'all'
+            query_group = ''
             d[query_group] = []
         for i in HostEntry.ansible_render_entries(entries, additional_columns=args.show,
                                                 only_show=args.only):

@@ -65,6 +65,8 @@ def stream_command(command, formatter=None, write_stdin=None, ignore_empty=False
             sys.exit('Keyboard interrupt while running {}'.format(command))
         if len(line.strip()) == 0 and ignore_empty is True:
             continue
+        elif 'killed by signal 1' in line.lower():
+            continue
         if formatter is not None:
             line = formatter(line)
         sys.stdout.write(line)
@@ -72,7 +74,7 @@ def stream_command(command, formatter=None, write_stdin=None, ignore_empty=False
     return result
 
 
-def stream_command_dicts(commands):
+def stream_command_dicts(commands, parallel=False):
     """
     Takes a list of dictionaries with keys corresponding to ``stream_command``
     arguments, and runs all concurrently.
@@ -80,15 +82,21 @@ def stream_command_dicts(commands):
     :param commands: A list of dictionaries, the keys of which should line up
                      with the arguments to ``stream_command`` function.
     :type commands: ``list`` of ``dict``
+    :param parallel: If true, commands will be run in parallel.
+    :type parallel: ``bool``
     """
-    threads = []
-    for command in commands:
-        target = lambda: stream_command(**command)
-        thread = Thread(target=target)
-        thread.start()
-        threads.append(thread)
-    for t in threads:
-        t.join()
+    if parallel is True:
+        threads = []
+        for command in commands:
+            target = lambda: stream_command(**command)
+            thread = Thread(target=target)
+            thread.start()
+            threads.append(thread)
+        for t in threads:
+            t.join()
+    else:
+        for command in commands:
+            stream_command(**command)
 
 
 def _format_with_description(description):
@@ -97,36 +105,23 @@ def _format_with_description(description):
     return _fmat
 
 
-def stream_commands(commands, randomize_colors=False, hash_colors=False):
+def stream_commands(commands, hash_colors=True, parallel=False):
     """
-    Runs multiple commands in parallel. Each command should be either a string,
-    a list of strings, or a dictionary with a 'command' key and optionally
-    'description' and 'write_stdin' keys.
+    Runs multiple commands, optionally in parallel. Each command should be
+    a dictionary with a 'command' key and optionally 'description' and
+    'write_stdin' keys.
     """
     def _get_color(string):
-        if randomize_colors is True:
-            return random_color(100, 150)
-        elif hash_colors is True:
-            return get_color_hash(string, 100, 150)
+        if hash_colors is True:
+            return get_color_hash(string)
         else:
             return DEFAULT_COLOR
     fixed_commands = []
     for command in commands:
-        if isinstance(command, basestring):
-            cmd_text = command
-            description = command
-            color = _get_color(command)
-            write_stdin = None
-        elif isinstance(command, tuple):
-            cmd_text = command[0]
-            description = command[1] if len(command) > 1 else None
-            color = command[2] if len(command) > 2 else _get_color(description)
-            write_stdin = command[3] if len(command) > 3 else None
-        elif isinstance(command, dict):
-            cmd_text = command['command']
-            description = command.get('description')
-            color = command.get('color', _get_color(description))
-            write_stdin = command.get('write_stdin')
+        cmd_text = command['command']
+        description = command.get('description')
+        color = _get_color(description or '')
+        write_stdin = command.get('write_stdin')
         description = color(description) if color is not None else description
         formatter = _format_with_description(description)
         fixed_commands.append({
@@ -135,4 +130,4 @@ def stream_commands(commands, randomize_colors=False, hash_colors=False):
             'write_stdin': write_stdin,
             'ignore_empty': True
         })
-    stream_command_dicts(fixed_commands)
+    stream_command_dicts(fixed_commands, parallel=parallel)

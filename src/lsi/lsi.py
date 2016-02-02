@@ -410,7 +410,7 @@ def _copy_to(entries, remote_path, local_path, profile):
             'command': cmd,
             'description': entry.display()
         })
-    stream_commands(commands, hash_colors=True)
+    stream_commands(commands)
     print green('Finished copying')
 
 
@@ -457,11 +457,11 @@ def _copy_from(entries, remote_path, local_path, profile):
             'command': cmd,
             'description': entry.display()
         })
-    stream_commands(commands, hash_colors=True)
+    stream_commands(commands)
     print green('Finished copying')
 
 
-def _run_ssh_command(entries, username, idfile, command):
+def _run_ssh_command(entries, username, idfile, command, parallel=False):
     """
     Runs the given command over SSH in parallel on all hosts in `entries`.
 
@@ -473,14 +473,16 @@ def _run_ssh_command(entries, username, idfile, command):
     :type idfile: ``str`` or ``NoneType``
     :param command: The command to run.
     :type command: ``str``
+    :param parallel: If true, commands will be run in parallel.
+    :type parallel: ``bool``
     """
     if len(entries) == 0:
-        print '(No hosts to run command on)'
+        print('(No hosts to run command on)')
         return 1
     if command.strip() == '' or command is None:
         raise ValueError('No command given')
-    print 'Running command `{0}` on {1} matching hosts'\
-                .format(command, len(entries))
+    print('Running command `{0}` on {1} matching hosts'
+          .format(green(command), len(entries)))
     shell_cmds = []
     for entry in entries:
         hname = entry.hostname or entry.public_ip
@@ -489,8 +491,8 @@ def _run_ssh_command(entries, username, idfile, command):
             'command': cmd,
             'description': entry.display()
         })
-    stream_commands(shell_cmds, hash_colors=True)
-    print green('All commands finished')
+    stream_commands(shell_cmds, parallel=parallel)
+    print(green('All commands finished'))
 
 
 def _connect_ssh(entry, username, idfile):
@@ -607,7 +609,9 @@ def main(progname=sys.argv[0]):
                  args.only, args.sort_by, args.limit)
     elif args.sep is not None:
         for e in entries:
-            print e.repr_as_line(columns=args.show, sep=args.sep)
+            print e.repr_as_line(additional_columns=args.show,
+                                 only_show=args.only,
+                                 sep=args.sep)
     elif args.attributes is True:
         attribs = HostEntry.list_attributes()
         print 'The following attributes are available: {}'\

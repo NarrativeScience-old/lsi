@@ -33,7 +33,8 @@ import time
 import boto
 
 from term import (green, yellow, cyan, red, blue, get_input, get_color_hash,
-                  get_current_terminal_width)
+                  get_current_terminal_width, MIN_COLOR_BRIGHT,
+                  MAX_COLOR_BRIGHT)
 from table import render_table, get_table_width
 
 # Location to read results from/write results to.
@@ -46,7 +47,7 @@ CACHE_EXPIRATION_INTERVAL = timedelta(days=_CACHE_DAYS)
 class HostEntry(object):
     """A selection of information about a host."""
     # Default columns to show in a representation.
-    DEFAULT_COLUMNS = ['name', 'public_ip']
+    DEFAULT_COLUMNS = ['name', 'hostname', 'public_ip']
 
     # Maps attribute names to their "pretty" names for use in display.
     COLUMN_NAMES = {
@@ -161,20 +162,25 @@ class HostEntry(object):
         return sorted(entries, key=lambda e: e._get_attrib(attribute))
 
 
-    def repr_as_line(self, columns=None, sep=None):
+    def repr_as_line(self, additional_columns=None, only_show=None, sep=','):
         """
         Returns a representation of the host as a single line, with columns
         joined by ``sep``.
 
-        :param columns: The columns to show. If none given, will use the class
-                        attribute ``DEFAULT_COLUMNS``.
-        :type columns: (``list`` of ``str``) or ``NoneType``
+        :param additional_columns: Columns to show in addition to defaults.
+        :type additional_columns: ``list`` of ``str``
+        :param only_show: A specific list of columns to show.
+        :type only_show: ``NoneType`` or ``list`` of ``str``
         :param sep: The column separator to use.
         :type sep: ``str``
 
         :rtype: ``str``
         """
-        columns = columns or self.DEFAULT_COLUMNS
+        additional_columns = additional_columns or []
+        if only_show is not None:
+            columns = _uniquify(only_show)
+        else:
+            columns = _uniquify(self.DEFAULT_COLUMNS + additional_columns)
         to_display = [self._get_attrib(c, convert_to_str=True) for c in columns]
         return sep.join(to_display)
 
@@ -318,7 +324,8 @@ class HostEntry(object):
             row = [entry._get_attrib(c, convert_to_str=True) for c in columns]
             table.append(row if numbers is False else [i] + row)
         cur_width = get_current_terminal_width()
-        colors = [get_color_hash(c, 100, 150) for c in columns]
+        colors = [get_color_hash(c, MIN_COLOR_BRIGHT, MAX_COLOR_BRIGHT)
+                  for c in columns]
         if cur_width >= get_table_width(table):
             return render_table(table,
                                 column_colors=colors if numbers is False

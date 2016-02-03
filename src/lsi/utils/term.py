@@ -33,16 +33,23 @@ COLORS = {
     'yellow': 33, 'blue': 34, 'magenta': 35,
 }
 
+def supports_256():
+    """Returns true if this terminal supports 256 colors"""
+    return "TERM" in os.environ and "256" in os.environ["TERM"]
 
 def color(number):
     """
     Returns a function that colors a string with a number from 0 to 255.
     """
+    if supports_256():
+        template = "\033[38;5;{number}m{text}\033[0m"
+    else:
+        template = "\033[{number}m{text}\033[0m"
     def _color(text):
         if not all([sys.stdout.isatty(), sys.stderr.isatty()]):
             return text
         else:
-            return '\033[{0}m{1}\033[0m'.format(number, text)
+            return template.format(number=number, text=text)
     return _color
 
 # Some coloring functions...
@@ -55,17 +62,14 @@ cyan = color(COLORS['blue'])
 
 COLORS = [green, blue, red, yellow, cyan, magenta]
 
-TERM = os.environ.get("TERM", "xterm")
-
-if "256color" in TERM:
-    MIN_COLOR = 0
-    MAX_COLOR = 255
-    MIN_COLOR_BRIGHT = 100
-    MAX_COLOR_BRIGHT = 150
+# In this case we only support 6 colors...
+if supports_256():
+    MIN_COLOR, MAX_COLOR = 0, 255
+    MIN_COLOR_BRIGHT, MAX_COLOR_BRIGHT = 100, 150
 else:
-    # In this case we only support 6 colors...
     MIN_COLOR = MIN_COLOR_BRIGHT = 31
     MAX_COLOR = MAX_COLOR_BRIGHT = 36
+
 
 def get_color_hash(string, _min=MIN_COLOR_BRIGHT, _max=MAX_COLOR_BRIGHT):
     """
@@ -93,7 +97,7 @@ def get_current_terminal_width():
         return 80
 
 
-def get_input(prompt, exit_msg='bye!'):
+def get_input(prompt, default=None, exit_msg='bye!'):
     """
     Reads stdin, exits with a message if interrupted, EOF, or a quit message.
 
@@ -103,9 +107,13 @@ def get_input(prompt, exit_msg='bye!'):
     try:
         response = raw_input(prompt)
     except (KeyboardInterrupt, EOFError):
-        print '\n%s' % exit_msg
+        print()
+        print(exit_msg)
         exit()
     try:
         return int(response)
     except ValueError:
-        return response
+        if response.strip() == "" and default is not None:
+            return default
+        else:
+            return response

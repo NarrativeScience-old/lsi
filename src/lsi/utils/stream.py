@@ -67,6 +67,8 @@ def stream_command(command, formatter=None, write_stdin=None, ignore_empty=False
             continue
         elif 'killed by signal 1' in line.lower():
             continue
+        elif 'to the list of known hosts' in line.lower():
+            continue
         if formatter is not None:
             line = formatter(line)
         sys.stdout.write(line)

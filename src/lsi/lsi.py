@@ -173,7 +173,7 @@ class LsiProfile(object):
         profile.override('username', args.username)
         profile.override('identity_file', args.identity_file)
         profile.override('command', args.command)
-        profile.no_prompt = args.yes
+        profile.no_prompt = args.no_prompt
         profile.filters.extend(args.filters)
         profile.exclude.extend(args.exclude)
         if profile.identity_file is not None:
@@ -216,6 +216,15 @@ def _run_ssh(entries, username, idfile, no_prompt=False,
             return _connect_ssh(entries[0], username, idfile)
         else:
             return _run_ssh_command(entries, username, idfile, command)
+    elif command is not None:
+        print(HostEntry.render_entries(entries,
+                                       additional_columns=show,
+                                       only_show=only, numbers=True))
+        if no_prompt is False:
+            get_input("Press enter to run command {} on the {} "
+                      "above machines (Ctrl-C to cancel)"
+                      .format(cyan(command), len(entries)))
+        return _run_ssh_command(entries, username, idfile, command)
     else:
         while True:
             if sort_by is not None:
@@ -481,8 +490,8 @@ def _run_ssh_command(entries, username, idfile, command, parallel=False):
         return 1
     if command.strip() == '' or command is None:
         raise ValueError('No command given')
-    print('Running command `{0}` on {1} matching hosts'
-          .format(green(command), len(entries)))
+    print('Running command {0} on {1} matching hosts'
+          .format(green(repr(command)), len(entries)))
     shell_cmds = []
     for entry in entries:
         hname = entry.hostname or entry.public_ip
@@ -547,8 +556,8 @@ def _get_args():
                         help='Exclude results that match these')
     parser.add_argument('-c', '--command', type=str,
                         help='Command to run on matching instance(s)')
-    parser.add_argument('-y', '--yes', action='store_true', default=False,
-                        help="Don't ask for confirmation")
+    parser.add_argument('-y', '--no-prompt', action='store_true', default=False,
+                        help="Don't ask for confirmation before running a command")
     parser.add_argument('-p', '--profile', type=str,
                         help='Profile to use (defined in ~/.lsi)')
     parser.add_argument('--show', nargs='+', default=None,
@@ -607,20 +616,20 @@ def main(progname=sys.argv[0]):
                  args.only, sort_by, args.limit)
     elif args.sep is not None:
         for e in entries:
-            print e.repr_as_line(additional_columns=args.show,
+            print(e.repr_as_line(additional_columns=args.show,
                                  only_show=args.only,
-                                 sep=args.sep)
+                                 sep=args.sep))
     elif args.attributes is True:
         attribs = HostEntry.list_attributes()
-        print 'The following attributes are available: {}'\
-                    .format(', '.join(attribs))
+        print('The following attributes are available: {}'
+              .format(', '.join(attribs)))
     else:
         entries = HostEntry.sort_by(entries, sort_by)
         if args.limit is not None:
             entries = entries[:args.limit]
-        print HostEntry.render_entries(entries, additional_columns=args.show,
-                                       only_show=args.only)
-        print '%s matching entries.' % len(entries)
+        print(HostEntry.render_entries(entries, additional_columns=args.show,
+                                       only_show=args.only))
+        print('%s matching entries.' % len(entries))
 
 if __name__ == '__main__':
     main()

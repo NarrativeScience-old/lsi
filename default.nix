@@ -22,7 +22,7 @@ in
 
 buildPythonPackage rec {
   name = "lsi-${version}";
-  version = "0.2.0";
+  version = "0.2.1";
   propagatedBuildInputs = [colored pkgs.openssh pkgs.which] ++
                           (with pythonPackages; [boto ipython]);
   src = ./.;

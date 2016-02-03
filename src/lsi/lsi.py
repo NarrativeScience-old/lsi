@@ -557,7 +557,7 @@ def _get_args():
                         help='Show ONLY these instance attributes')
     parser.add_argument('--sep', type=str, default=None,
                         help='Simple output with given separator')
-    parser.add_argument('--sort-by', type=str, default='name',
+    parser.add_argument('--sort-by', type=str, default=None,
                         help='What to sort list by')
     parser.add_argument('-L', '--limit', type=int, default=None,
                         help='Show at most this many entries')
@@ -573,10 +573,7 @@ def _get_args():
     # Presumably, if someone is sorting by something, they want to show that
     # thing...
     if args.sort_by is not None:
-        if args.show is None:
-            args.show = []
-        if args.sort_by not in args.show:
-            args.show.append(args.sort_by)
+        args.show = (args.show or []) + [args.sort_by]
     return args
 
 
@@ -593,6 +590,7 @@ def main(progname=sys.argv[0]):
     if args.refresh_only is True:
         print('Refreshed cache')
         return
+    sort_by = args.sort_by or "name"
     if args.get is not None:
         _copy_from(entries, remote_path=args.get[0],
                    local_path=args.get[1],
@@ -606,7 +604,7 @@ def main(progname=sys.argv[0]):
            args.profile is not None or profile.command is not None:
         _run_ssh(entries, profile.username, profile.identity_file,
                  profile.no_prompt, profile.command, args.show,
-                 args.only, args.sort_by, args.limit)
+                 args.only, sort_by, args.limit)
     elif args.sep is not None:
         for e in entries:
             print e.repr_as_line(additional_columns=args.show,
@@ -617,8 +615,7 @@ def main(progname=sys.argv[0]):
         print 'The following attributes are available: {}'\
                     .format(', '.join(attribs))
     else:
-        if args.sort_by is not None:
-            entries = HostEntry.sort_by(entries, args.sort_by)
+        entries = HostEntry.sort_by(entries, sort_by)
         if args.limit is not None:
             entries = entries[:args.limit]
         print HostEntry.render_entries(entries, additional_columns=args.show,

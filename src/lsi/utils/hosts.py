@@ -44,10 +44,18 @@ CACHE_LOCATION = expanduser(os.environ.get('LSI_CACHE', '~/.lsi_cache.json'))
 _CACHE_DAYS = int(os.environ.get('LSI_CACHE_DAYS', 1))
 CACHE_EXPIRATION_INTERVAL = timedelta(days=_CACHE_DAYS)
 
+
+DEFAULT_ATTRIBUTES = os.environ.get("LSI_DEFAULT_ATTRIBUTES", "").lower()
+
 class HostEntry(object):
     """A selection of information about a host."""
     # Default columns to show in a representation.
-    DEFAULT_COLUMNS = ['name', 'hostname', 'public_ip']
+    if "LSI_DEFAULT_ATTRIBUTES" in os.environ:
+        DEFAULT_COLUMNS = (os.environ["LSI_DEFAULT_ATTRIBUTES"].lower()
+                           .split(","))
+    else:
+        DEFAULT_COLUMNS = ['name', 'hostname', 'public_ip']
+
 
     # Maps attribute names to their "pretty" names for use in display.
     COLUMN_NAMES = {

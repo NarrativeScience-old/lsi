@@ -2,7 +2,8 @@ import setuptools
 import os
 
 # This will add the __version__ to the globals
-execfile('src/lsi/__init__.py')
+with open("src/lsi/__init__.py") as f:
+    exec(f.read())
 
 setuptools.setup(
     name='lsi',

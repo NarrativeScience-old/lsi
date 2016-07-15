@@ -102,6 +102,44 @@ class HostEntry(object):
         return repr({k: self._get_attrib(k, convert_nones=True)
                      for k in self.DEFAULT_COLUMNS})
 
+    def to_dict(self):
+        """Serialize the host entry into a dictionary, for caching.
+
+        :return: A dictionary serialization of ``self``.
+        :rtype: ``dict``
+        """
+        return vars(self)
+
+    @classmethod
+    def from_dict(cls, entry_dict):
+        """Deserialize a HostEntry from a dictionary.
+
+        This is more or less the same as calling
+        HostEntry(**entry_dict), but is clearer if something is
+        missing.
+
+        :param entry_dict: A dictionary in the format outputted by to_dict().
+        :type entry_dict: ``dict``
+
+        :return: A HostEntry object.
+        :rtype: ``cls``
+        """
+        return cls(
+            name=entry_dict["name"],
+            instance_type=entry_dict["instance_type"],
+            hostname=entry_dict["hostname"],
+            private_ip=entry_dict["private_ip"],
+            public_ip=entry_dict["public_ip"],
+            stack_name=entry_dict["stack_name"],
+            stack_id=entry_dict["stack_id"],
+            logical_id=entry_dict["logical_id"],
+            security_groups=entry_dict["security_groups"],
+            tags=entry_dict["tags"],
+            ami_id=entry_dict["ami_id"],
+            launch_time=entry_dict["launch_time"],
+            instance_id=entry_dict["instance_id"]
+        )
+
     def _get_attrib(self, attr, convert_to_str=False):
         """
         Given an attribute name, looks it up on the entry. Names that
@@ -457,7 +495,7 @@ def _list_all_cached():
     with open(CACHE_LOCATION) as f:
         contents = f.read()
         objects = json.loads(contents)
-        return [HostEntry(**obj) for obj in objects]
+        return [HostEntry.from_dict(obj) for obj in objects]
 
 
 def filter_entries(entries, filters, exclude):

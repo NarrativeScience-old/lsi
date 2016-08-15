@@ -13,6 +13,9 @@ setuptools.setup(
     provides=setuptools.find_packages('src'),
     install_requires=open('requirements.txt').readlines(),
     entry_points={
-        'console_scripts': ['lsi = lsi.lsi:main']
+        'console_scripts': [
+            'lsi = lsi.lsi:main',
+            'lsi-server = lsi.lsi_server:main'
+        ]
     }
 )

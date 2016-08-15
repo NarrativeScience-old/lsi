@@ -28,6 +28,8 @@ import os
 from os.path import dirname, join, expanduser, exists
 import re
 from datetime import datetime, timedelta
+import requests
+import sys
 import time
 
 import boto
@@ -41,11 +43,13 @@ from table import render_table, get_table_width
 CACHE_LOCATION = expanduser(os.environ.get('LSI_CACHE', '~/.lsi_cache.json'))
 
 # Interval after which cache is considered invalid.
-_CACHE_DAYS = int(os.environ.get('LSI_CACHE_DAYS', 1))
-CACHE_EXPIRATION_INTERVAL = timedelta(days=_CACHE_DAYS)
+_CACHE_MINUTES = int(os.environ.get('LSI_CACHE_MINUTES', 60 * 24))
+CACHE_EXPIRATION_INTERVAL = timedelta(days=_CACHE_MINUTES)
 
-
-DEFAULT_ATTRIBUTES = os.environ.get("LSI_DEFAULT_ATTRIBUTES", "").lower()
+# LSI server (provides EC2 instance information).
+LSI_SERVER = os.environ.get("LSI_SERVER")
+# Server request timeout.
+LSI_SERVER_TIMEOUT = int(os.environ.get("LSI_SERVER_TIMEOUT", 5))
 
 class HostEntry(object):
     """A selection of information about a host."""
@@ -99,8 +103,7 @@ class HostEntry(object):
         self.tags = tags
 
     def __repr__(self):
-        return repr({k: self._get_attrib(k, convert_nones=True)
-                     for k in self.DEFAULT_COLUMNS})
+        return repr({k: self._get_attrib(k) for k in self.DEFAULT_COLUMNS})
 
     def to_dict(self):
         """Serialize the host entry into a dictionary, for caching.
@@ -424,7 +427,7 @@ def _match_regex(regex, obj):
         return False
 
 
-def get_entries(latest, filters, exclude, limit=None):
+def get_entries(latest=False, filters=None, exclude=None, limit=None):
     """
     Lists all available instances.
 
@@ -442,8 +445,12 @@ def get_entries(latest, filters, exclude, limit=None):
     :return: A list of host entries.
     :rtype: ``list`` of :py:class:`HostEntry`
     """
-    entry_list = _list_all_latest() if latest is True or not _is_valid_cache()\
-                 else _list_all_cached()
+    filters = filters or []
+    exclude = exclude or []
+    if LSI_SERVER is not None:
+        entry_list = _list_instances_server(LSI_SERVER, latest=latest)
+    else:
+        entry_list = _list_instances_boto(latest)
     filtered = filter_entries(entry_list, filters, exclude)
     if limit is not None:
         return filtered[:limit]
@@ -466,37 +473,54 @@ def _is_valid_cache():
     return datetime.now() - modified <= CACHE_EXPIRATION_INTERVAL
 
 
-def _list_all_latest():
-    """
-    Gets the latest list from AWS, and writes to the cache.
+def _list_instances_boto(latest=False):
+    """Fetch instance list from boto, using a filesystem cache.
 
     :return: A list of host entries.
     :rtype: [:py:class:`HostEntry`]
     """
-    entries = []
-    ec2 = boto.connect_ec2()
-    rs = ec2.get_all_instances(filters={'instance-state-name': 'running'})
-    for r in rs:
-        for inst in r.instances:
-            entries.append(HostEntry.from_boto_instance(inst))
-    with open(CACHE_LOCATION, 'w') as f:
-        entry_objs = [vars(e) for e in entries]
-        f.write(json.dumps(entry_objs))
-    return entries
+    if latest is True or _is_valid_cache() is False:
+        entries = []
+        ec2 = boto.connect_ec2()
+        rs = ec2.get_all_instances(filters={'instance-state-name': 'running'})
+        for r in rs:
+            for inst in r.instances:
+                entries.append(HostEntry.from_boto_instance(inst))
+        with open(CACHE_LOCATION, 'w') as f:
+            entry_objs = [vars(e) for e in entries]
+            f.write(json.dumps(entry_objs))
+        return entries
+    else:
+        with open(CACHE_LOCATION) as f:
+            contents = f.read()
+            objects = json.loads(contents)
+            return [HostEntry.from_dict(obj) for obj in objects]
 
 
-def _list_all_cached():
-    """
-    Reads the description cache, returning each instance's information.
+def _list_instances_server(endpoint, latest=False):
+    """Query an LSI server for the latest instance information.
 
+    :param endpoint: Base URl to the LSI server.
+    :type endpoint: ``bool``
+    :param latest: If true, force the server to fetch the latest.
+    :type latest: ``bool``
+        
     :return: A list of host entries.
     :rtype: [:py:class:`HostEntry`]
     """
-    with open(CACHE_LOCATION) as f:
-        contents = f.read()
-        objects = json.loads(contents)
+    url = "{}/list-instances".format(endpoint)
+    if latest is True:
+        url += "?latest=True"
+    try:
+        response = requests.get(url, timeout=LSI_SERVER_TIMEOUT)
+        objects = response.json()["entries"]
         return [HostEntry.from_dict(obj) for obj in objects]
-
+    except Exception as error:
+        sys.stderr.write("Couldn't fetch instances from {} ({}). "
+                         "Falling back to boto method..."
+                         .format(endpoint, error))
+        return _list_instances_boto()
+        
 
 def filter_entries(entries, filters, exclude):
     """

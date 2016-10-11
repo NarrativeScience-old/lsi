@@ -181,8 +181,8 @@ class LsiProfile(object):
         return profile
 
 
-def _run_ssh(entries, username, idfile, no_prompt=False,
-             command=None, show=None, only=None, sort_by=None, limit=None):
+def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
+             show=None, only=None, sort_by=None, limit=None, tunnel=None):
     """
     Lets the user choose which instance to SSH into.
 
@@ -213,7 +213,7 @@ def _run_ssh(entries, username, idfile, no_prompt=False,
         return _run_ssh_command(entries, username, idfile, command)
     elif len(entries) == 1:
         if command is None:
-            return _connect_ssh(entries[0], username, idfile)
+            return _connect_ssh(entries[0], username, idfile, tunnel)
         else:
             return _run_ssh_command(entries, username, idfile, command)
     elif command is not None:
@@ -338,18 +338,19 @@ def _get_path(cmd):
     return _PATHS[cmd]
 
 
-def _build_ssh_command(hostname, username, idfile, ssh_command):
+def _build_ssh_command(hostname, username, idfile, ssh_command, tunnel):
     """Uses hostname and other info to construct an SSH command."""
-    if hostname.strip() == '' or hostname is None:
-        raise ValueError('Empty hostname')
     command = [_get_path('ssh'),
                '-o', 'StrictHostKeyChecking=no',
                '-o', 'ConnectTimeout=5',
                '-o', 'UserKnownHostsFile={}'.format(_KNOWN_HOSTS_FILE)]
     if idfile is not None:
         command.extend(['-i', idfile])
+    if tunnel is not None:
+       # If there's a tunnel, run the ssh command on the tunneled host.
+       command.extend(['-A', '-t', tunnel, 'ssh', '-A', '-t'])
     if username is not None:
-        command.append('%s@%s' % (username, hostname))
+        command.append('{}@{}'.format(username, hostname))
     else:
         command.append(hostname)
     if ssh_command is not None:
@@ -504,7 +505,7 @@ def _run_ssh_command(entries, username, idfile, command, parallel=False):
     print(green('All commands finished'))
 
 
-def _connect_ssh(entry, username, idfile):
+def _connect_ssh(entry, username, idfile, tunnel=None):
     """
     SSH into to a host.
 
@@ -514,12 +515,26 @@ def _connect_ssh(entry, username, idfile):
     :type username: ``str`` or ``NoneType``
     :param idfile: The SSH identity file to use, if supplying a username.
     :type idfile: ``str`` or ``NoneType``
+    :param tunnel: Host to tunnel SSH command through.
+    :type tunnel: ``str`` or ``NoneType``
 
     :return: An exit status code.
     :rtype: ``int``
     """
-    hostname = entry.hostname or entry.public_ip
-    command = _build_ssh_command(hostname, username, idfile, None)
+    if entry.hostname != "" and entry.hostname is not None:
+        _host = entry.hostname
+    elif entry.public_ip != "" and entry.public_ip is not None:
+        _host = entry.public_ip
+    elif entry.private_ip != "" and entry.private_ip is not None:
+        if tunnel is None:
+            raise ValueError("Entry does not have a hostname or public IP. "
+                             "You can connect via private IP if you use a "
+                             "tunnel.")
+        _host = entry.private_ip
+    else:
+        raise ValueError("No hostname, public IP or private IP information "
+                         "found on host entry. I don't know how to connect.")
+    command = _build_ssh_command(_host, username, idfile, None, tunnel)
     print 'Connecting to %s...' % cyan(entry.display())
     print 'SSH command: %s' % green(command)
     proc = subprocess.Popen(command, shell=True)
@@ -576,6 +591,8 @@ def _get_args():
                         help='Get files from matching instances')
     parser.add_argument('--put', nargs=2, default=None,
                         help='Put a local file on matching instances')
+    parser.add_argument('-t', '--tunnel', default=None,
+                        help='Connect via the tunneled host.')
     args = parser.parse_args()
     if args.exclude is None:
         args.exclude = []
@@ -611,9 +628,18 @@ def main(progname=sys.argv[0]):
     elif args.ssh is True or \
            args.username is not None or args.identity_file is not None or \
            args.profile is not None or profile.command is not None:
-        _run_ssh(entries, profile.username, profile.identity_file,
-                 profile.no_prompt, profile.command, args.show,
-                 args.only, sort_by, args.limit)
+        _run_ssh(
+            entries=entries,
+            username=profile.username,
+            idfile=profile.identity_file,
+            no_prompt=profile.no_prompt,
+            command=profile.command,
+            show=args.show,
+            only=args.only,
+            sort_by=sort_by,
+            limit=args.limit,
+            tunnel=args.tunnel
+        )
     elif args.sep is not None:
         for e in entries:
             print(e.repr_as_line(additional_columns=args.show,

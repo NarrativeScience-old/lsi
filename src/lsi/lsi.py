@@ -322,7 +322,7 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                         _print_entries = True
                     else:
                         print yellow('Unknown command "%s".' % cmd)
-        return _connect_ssh(entries[choice], username, idfile)
+        return _connect_ssh(entries[choice], username, idfile, tunnel)
 
 
 def _get_path(cmd):

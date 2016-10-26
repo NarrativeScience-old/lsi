@@ -572,7 +572,8 @@ def _get_args():
     parser.add_argument('-c', '--command', type=str,
                         help='Command to run on matching instance(s)')
     parser.add_argument('-y', '--no-prompt', action='store_true', default=False,
-                        help="Don't ask for confirmation before running a command")
+                        help="Don't ask for confirmation before running a "
+                             "command")
     parser.add_argument('-p', '--profile', type=str,
                         help='Profile to use (defined in ~/.lsi)')
     parser.add_argument('--show', nargs='+', default=None,
@@ -588,9 +589,11 @@ def _get_args():
     parser.add_argument('--attributes', action='store_true',
                         help='Show all available attributes')
     parser.add_argument('--get', nargs=2, default=None,
-                        help='Get files from matching instances')
+                        help='Get files from matching instances, must be '
+                             'followed by the source and destination filenames')
     parser.add_argument('--put', nargs=2, default=None,
-                        help='Put a local file on matching instances')
+                        help='Put a local file on matching instances, must be '
+                             'followed by the source and destination filenames')
     parser.add_argument('-t', '--tunnel', default=None,
                         help='Connect via the tunneled host.')
     args = parser.parse_args()

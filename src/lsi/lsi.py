@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Narrative Science
+# Copyright (c) 2015-2016, Narrative Science
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -210,12 +210,12 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
     if len(entries) == 0:
         exit('No entries matched the filters.')
     if no_prompt is True and command is not None:
-        return _run_ssh_command(entries, username, idfile, command)
+        return _run_ssh_command(entries, username, idfile, command, tunnel)
     elif len(entries) == 1:
         if command is None:
             return _connect_ssh(entries[0], username, idfile, tunnel)
         else:
-            return _run_ssh_command(entries, username, idfile, command)
+            return _run_ssh_command(entries, username, idfile, command, tunnel)
     elif command is not None:
         print(HostEntry.render_entries(entries,
                                        additional_columns=show,
@@ -224,7 +224,7 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
             get_input("Press enter to run command {} on the {} "
                       "above machines (Ctrl-C to cancel)"
                       .format(cyan(command), len(entries)))
-        return _run_ssh_command(entries, username, idfile, command)
+        return _run_ssh_command(entries, username, idfile, command, tunnel)
     else:
         while True:
             if sort_by is not None:
@@ -259,7 +259,8 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                 if command is None:
                     print 'No command has been set. Set command with `c`'
                 else:
-                    return _run_ssh_command(entries, username, idfile, command)
+                    return _run_ssh_command(entries, username, idfile,
+                                            command, tunnel)
             elif choice == 'h':
                 _print_help = True
             elif choice in ['q', 'quit', 'exit']:
@@ -355,6 +356,7 @@ def _build_ssh_command(hostname, username, idfile, ssh_command, tunnel):
         command.append(hostname)
     if ssh_command is not None:
         command.append(repr(ssh_command))
+    print " ".join(command)
     return ' '.join(command)
 
 def _build_scp_command(hostname, username, idfile, is_get,
@@ -471,7 +473,8 @@ def _copy_from(entries, remote_path, local_path, profile):
     print green('Finished copying')
 
 
-def _run_ssh_command(entries, username, idfile, command, parallel=False):
+def _run_ssh_command(entries, username, idfile, command, tunnel,
+                     parallel=False):
     """
     Runs the given command over SSH in parallel on all hosts in `entries`.
 
@@ -496,7 +499,7 @@ def _run_ssh_command(entries, username, idfile, command, parallel=False):
     shell_cmds = []
     for entry in entries:
         hname = entry.hostname or entry.public_ip
-        cmd = _build_ssh_command(hname, username, idfile, command)
+        cmd = _build_ssh_command(hname, username, idfile, command, tunnel)
         shell_cmds.append({
             'command': cmd,
             'description': entry.display()
@@ -572,7 +575,8 @@ def _get_args():
     parser.add_argument('-c', '--command', type=str,
                         help='Command to run on matching instance(s)')
     parser.add_argument('-y', '--no-prompt', action='store_true', default=False,
-                        help="Don't ask for confirmation before running a command")
+                        help="Don't ask for confirmation before running a "
+                             "command")
     parser.add_argument('-p', '--profile', type=str,
                         help='Profile to use (defined in ~/.lsi)')
     parser.add_argument('--show', nargs='+', default=None,
@@ -588,9 +592,11 @@ def _get_args():
     parser.add_argument('--attributes', action='store_true',
                         help='Show all available attributes')
     parser.add_argument('--get', nargs=2, default=None,
-                        help='Get files from matching instances')
+                        help='Get files from matching instances, must be '
+                             'followed by the source and destination filenames')
     parser.add_argument('--put', nargs=2, default=None,
-                        help='Put a local file on matching instances')
+                        help='Put a local file on matching instances, must be '
+                             'followed by the source and destination filenames')
     parser.add_argument('-t', '--tunnel', default=None,
                         help='Connect via the tunneled host.')
     args = parser.parse_args()

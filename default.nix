@@ -28,6 +28,7 @@ buildPythonPackage rec {
     colored
     pkgs.openssh
     pkgs.which
+    pythonPackages.six
     pythonPackages.boto
   ];
   src = ./.;

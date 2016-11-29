@@ -29,6 +29,7 @@ import os
 from os.path import dirname, join, expanduser, exists
 import re
 from datetime import datetime, timedelta
+import six
 import time
 
 import boto
@@ -256,7 +257,7 @@ class HostEntry(object):
             security_groups=[g.name for g in instance.groups],
             launch_time=instance.launch_time,
             ami_id=instance.image_id,
-            tags={k.lower(): v for k, v in instance.tags.items()}
+            tags={k.lower(): v for k, v in six.iteritems(instance.tags)}
         )
 
     def matches(self, _filter):
@@ -298,7 +299,7 @@ class HostEntry(object):
 
         :rtype: ``str``
         """
-        if isinstance(self.name, basestring) and len(self.name) > 0:
+        if isinstance(self.name, six.string_types) and len(self.name) > 0:
             return '{0} ({1})'.format(self.name, self.public_ip)
         else:
             return self.public_ip
@@ -415,14 +416,14 @@ def _match_regex(regex, obj):
 
     :rtype: ``bool``
     """
-    if isinstance(obj, basestring):
+    if isinstance(obj, six.string_types):
         return len(regex.findall(obj)) > 0
     elif isinstance(obj, dict):
         return _match_regex(regex, obj.values())
     elif hasattr(obj, '__iter__'):
         # Object is a list or some other iterable.
         return any(_match_regex(regex, s)
-                   for s in obj if isinstance(s, basestring))
+                   for s in obj if isinstance(s, six.string_types))
     else:
         return False
 

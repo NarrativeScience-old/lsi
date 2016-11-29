@@ -340,12 +340,8 @@ def _get_path(cmd):
     """Queries bash to find the path to a commmand on the system."""
     if cmd in _PATHS:
         return _PATHS[cmd]
-    proc = subprocess.Popen('which ' + cmd, shell=True, stdout=subprocess.PIPE)
-    out, err = proc.communicate()
-    if proc.wait() != 0:
-        raise IOError('Lookup of path to command {0} failed{1}'
-                      .format(repr(cmd), '' if err is None else ': ' + err))
-    _PATHS[cmd] = out.strip()
+    out = subprocess.check_output('which {}'.format(cmd), shell=True)
+    _PATHS[cmd] = out.decode("utf-8").strip()
     return _PATHS[cmd]
 
 

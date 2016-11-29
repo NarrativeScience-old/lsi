@@ -26,6 +26,7 @@ from __future__ import print_function
 import hashlib
 import os
 import random
+import six
 import sys
 
 # Codes for some terminal colors
@@ -106,7 +107,7 @@ def get_input(prompt, default=None, exit_msg='bye!'):
     :rtype: ``str`` or ``int``
     """
     try:
-        response = raw_input(prompt)
+        response = six.moves.input(prompt)
     except (KeyboardInterrupt, EOFError):
         print()
         print(exit_msg)

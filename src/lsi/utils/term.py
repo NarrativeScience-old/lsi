@@ -22,6 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from __future__ import print_function
 import hashlib
 import os
 import random
@@ -75,7 +76,7 @@ def get_color_hash(string, _min=MIN_COLOR_BRIGHT, _max=MAX_COLOR_BRIGHT):
     """
     Hashes a string and returns a number between ``min`` and ``max``.
     """
-    hash_num = int(hashlib.sha1(string).hexdigest()[:6], 16)
+    hash_num = int(hashlib.sha1(string.encode('utf-8')).hexdigest()[:6], 16)
     _range = _max - _min
     num_in_range = hash_num % _range
     return color(_min + num_in_range)

@@ -22,6 +22,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from __future__ import print_function
 import os
 import shlex
 import subprocess
@@ -29,7 +30,7 @@ import sys
 
 from threading import Thread
 
-from term import random_color, get_color_hash
+from lsi.utils.term import random_color, get_color_hash
 
 DEFAULT_COLOR = None
 

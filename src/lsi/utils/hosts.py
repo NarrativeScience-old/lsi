@@ -22,20 +22,22 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from __future__ import print_function
 import inspect
 import json
 import os
 from os.path import dirname, join, expanduser, exists
 import re
 from datetime import datetime, timedelta
+import six
 import time
 
 import boto
 
-from term import (green, yellow, cyan, red, blue, get_input, get_color_hash,
-                  get_current_terminal_width, MIN_COLOR_BRIGHT,
-                  MAX_COLOR_BRIGHT)
-from table import render_table, get_table_width
+from lsi.utils.term import (green, yellow, cyan, red, blue, get_input,
+                            get_color_hash, get_current_terminal_width,
+                            MIN_COLOR_BRIGHT, MAX_COLOR_BRIGHT)
+from lsi.utils.table import render_table, get_table_width
 
 # Location to read results from/write results to.
 CACHE_LOCATION = expanduser(os.environ.get('LSI_CACHE', '~/.lsi_cache.json'))
@@ -205,7 +207,9 @@ class HostEntry(object):
         """
         Sorts a list of entries by the given attribute.
         """
-        return sorted(entries, key=lambda e: e._get_attrib(attribute))
+        def key(entry):
+            return entry._get_attrib(attribute, convert_to_str=True)
+        return sorted(entries, key=key)
 
 
     def repr_as_line(self, additional_columns=None, only_show=None, sep=','):
@@ -253,7 +257,7 @@ class HostEntry(object):
             security_groups=[g.name for g in instance.groups],
             launch_time=instance.launch_time,
             ami_id=instance.image_id,
-            tags={k.lower(): v for k, v in instance.tags.iteritems()}
+            tags={k.lower(): v for k, v in six.iteritems(instance.tags)}
         )
 
     def matches(self, _filter):
@@ -295,7 +299,7 @@ class HostEntry(object):
 
         :rtype: ``str``
         """
-        if isinstance(self.name, basestring) and len(self.name) > 0:
+        if isinstance(self.name, six.string_types) and len(self.name) > 0:
             return '{0} ({1})'.format(self.name, self.public_ip)
         else:
             return self.public_ip
@@ -364,7 +368,7 @@ class HostEntry(object):
             columns = _uniquify(only_show)
         else:
             columns = _uniquify(cls.DEFAULT_COLUMNS + additional_columns)
-        top_row = map(cls.prettyname, columns)
+        top_row = [cls.prettyname(col) for col in columns]
         table = [top_row] if numbers is False else [[''] + top_row]
         for i, entry in enumerate(entries):
             row = [entry._get_attrib(c, convert_to_str=True) for c in columns]
@@ -412,14 +416,14 @@ def _match_regex(regex, obj):
 
     :rtype: ``bool``
     """
-    if isinstance(obj, basestring):
+    if isinstance(obj, six.string_types):
         return len(regex.findall(obj)) > 0
     elif isinstance(obj, dict):
         return _match_regex(regex, obj.values())
     elif hasattr(obj, '__iter__'):
         # Object is a list or some other iterable.
         return any(_match_regex(regex, s)
-                   for s in obj if isinstance(s, basestring))
+                   for s in obj if isinstance(s, six.string_types))
     else:
         return False
 
@@ -531,4 +535,4 @@ def get_host(name):
     rs = ec2.get_all_instances(filters=f)
     if len(rs) == 0:
         raise Exception('Host "%s" not found' % name)
-    print rs[0].instances[0].public_dns_name
+    print(rs[0].instances[0].public_dns_name)

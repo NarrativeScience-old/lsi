@@ -58,19 +58,29 @@ the argument `-u` (or `--username`), and can specify an identity file with
     # dialog. Will connect as user `ubuntu`.
     > list_instances.py wkfl stg -e batch -s -u ubuntu
 """
-
+from __future__ import print_function
 import argparse
-from ConfigParser import ConfigParser
 import os
 from os.path import dirname, join, expanduser, exists
-import subprocess
 import sys
+import subprocess
 
-from utils.hosts import HostEntry, get_entries, filter_entries, get_host
-from utils.term import (green, yellow, cyan, blue, get_input)
-from utils.system import get_current_username
-from utils.stream import stream_commands
-
+# The configparser module was renamed in python3. For the other
+# imports, they just seem to not work the same in python2 and
+# python3. Oh well.
+if sys.version_info >= (3, 0):
+    from configparser import ConfigParser
+    from lsi.utils.hosts import (HostEntry, get_entries, filter_entries,
+                                 get_host)
+    from lsi.utils.term import (green, yellow, cyan, blue, get_input)
+    from lsi.utils.system import get_current_username
+    from lsi.utils.stream import stream_commands
+else:
+    from ConfigParser import ConfigParser
+    from utils.hosts import (HostEntry, get_entries, filter_entries, get_host)
+    from utils.term import (green, yellow, cyan, blue, get_input)
+    from utils.system import get_current_username
+    from utils.stream import stream_commands
 
 # String displayed at the command prompt.
 COMMANDS_STRING = \
@@ -232,20 +242,20 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
             if limit is not None:
                 entries = entries[:limit]
             if _print_entries is True:
-                print HostEntry.render_entries(entries,
+                print(HostEntry.render_entries(entries,
                                                additional_columns=show,
-                                               only_show=only, numbers=True)
-                print '%s matching entries.' % len(entries)
+                                               only_show=only, numbers=True))
+                print('%s matching entries.' % len(entries))
                 _print_entries = False
             if _print_help is True:
                 cmd_str = green(command) if command is not None else 'none set'
                 msg = COMMANDS_STRING.format(username=username or 'none set',
                                              idfile=idfile or 'none set',
                                              cur_cmd=cmd_str)
-                print msg
+                print(msg)
                 _print_help = False
             elif command is not None:
-                print 'Set to run ssh command: %s' % cyan(command)
+                print('Set to run ssh command: %s' % cyan(command))
             msg = 'Enter command (%s for help, %s to quit): ' % (cyan('h'),
                                                                  cyan('q'))
             choice = get_input(msg)
@@ -254,24 +264,24 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                     break
                 else:
                     msg = 'Invalid number: must be between 0 and %s'
-                    print msg % (len(entries) - 1)
+                    print(msg % (len(entries) - 1))
             elif choice == 'x':
                 if command is None:
-                    print 'No command has been set. Set command with `c`'
+                    print('No command has been set. Set command with `c`')
                 else:
                     return _run_ssh_command(entries, username, idfile,
                                             command, tunnel)
             elif choice == 'h':
                 _print_help = True
             elif choice in ['q', 'quit', 'exit']:
-                print 'bye!'
+                print('bye!')
                 return
             else:
                 # All of these commands take one or more arguments, so the
                 # split length must be at least 2.
                 commands = choice.split()
                 if len(commands) < 2:
-                    print yellow('Unknown command "%s".' % choice)
+                    print(yellow('Unknown command "%s".' % choice))
                 else:
                     cmd = commands[0]
                     if cmd in ['u', 'i', 'p']:
@@ -280,7 +290,7 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                         elif cmd == 'i':
                             _idfile = commands[1]
                             if not os.path.exists(_idfile):
-                                print yellow('No such file: %s' % _idfile)
+                                print(yellow('No such file: %s' % _idfile))
                                 continue
                             idfile = _idfile
                         elif cmd == 'p':
@@ -290,12 +300,12 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                                 _username = profile.username
                                 _idfile = expanduser(profile.identity_file)
                             except LsiProfile.LoadError:
-                                print yellow('No such profile: %s' % repr(p))
+                                print(yellow('No such profile: %s' % repr(p)))
                                 continue
                             username = _username
                             idfile = _idfile
-                        print 'username: %s' % green(repr(username))
-                        print 'identity file: %s' % green(repr(idfile))
+                        print('username: %s' % green(repr(username)))
+                        print('identity file: %s' % green(repr(idfile)))
                     elif cmd == 'f':
                         entries = filter_entries(entries, commands[1:], [])
                         _print_entries = True
@@ -309,7 +319,7 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                             limit = int(commands[1])
                             _print_entries = True
                         except ValueError:
-                            print yellow('Invalid limit (must be an integer)')
+                            print(yellow('Invalid limit (must be an integer)'))
                     elif cmd == 'sort':
                         sort_by = commands[1]
                         if sort_by not in show:
@@ -322,7 +332,7 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                             show.extend(commands[1:])
                         _print_entries = True
                     else:
-                        print yellow('Unknown command "%s".' % cmd)
+                        print(yellow('Unknown command "%s".' % cmd))
         return _connect_ssh(entries[choice], username, idfile, tunnel)
 
 
@@ -330,12 +340,8 @@ def _get_path(cmd):
     """Queries bash to find the path to a commmand on the system."""
     if cmd in _PATHS:
         return _PATHS[cmd]
-    proc = subprocess.Popen('which ' + cmd, shell=True, stdout=subprocess.PIPE)
-    out, err = proc.communicate()
-    if proc.wait() != 0:
-        raise IOError('Lookup of path to command {0} failed{1}'
-                      .format(repr(cmd), '' if err is None else ': ' + err))
-    _PATHS[cmd] = out.strip()
+    out = subprocess.check_output('which {}'.format(cmd), shell=True)
+    _PATHS[cmd] = out.decode("utf-8").strip()
     return _PATHS[cmd]
 
 
@@ -343,21 +349,19 @@ def _build_ssh_command(hostname, username, idfile, ssh_command, tunnel):
     """Uses hostname and other info to construct an SSH command."""
     command = [_get_path('ssh'),
                '-o', 'StrictHostKeyChecking=no',
-               '-o', 'ConnectTimeout=5',
-               '-o', 'UserKnownHostsFile={}'.format(_KNOWN_HOSTS_FILE)]
+               '-o', 'ConnectTimeout=5']
     if idfile is not None:
         command.extend(['-i', idfile])
     if tunnel is not None:
-       # If there's a tunnel, run the ssh command on the tunneled host.
-       command.extend(['-A', '-t', tunnel, 'ssh', '-A', '-t'])
+        # If there's a tunnel, run the ssh command on the tunneled host.
+        command.extend(['-A', '-t', tunnel, 'ssh', '-A', '-t'])
     if username is not None:
         command.append('{}@{}'.format(username, hostname))
     else:
         command.append(hostname)
     if ssh_command is not None:
         command.append(repr(ssh_command))
-    print " ".join(command)
-    return ' '.join(command)
+    return(' '.join(command))
 
 def _build_scp_command(hostname, username, idfile, is_get,
                        local_path, remote_path):
@@ -417,13 +421,13 @@ def _copy_to(entries, remote_path, local_path, profile):
                                  is_get=False,
                                  local_path=local_path,
                                  remote_path=remote_path)
-        print 'Command:',cmd
+        print('Command:', cmd)
         commands.append({
             'command': cmd,
             'description': entry.display()
         })
     stream_commands(commands)
-    print green('Finished copying')
+    print(green('Finished copying'))
 
 
 def _copy_from(entries, remote_path, local_path, profile):
@@ -464,13 +468,13 @@ def _copy_from(entries, remote_path, local_path, profile):
                                  is_get=True,
                                  local_path=_local_path,
                                  remote_path=remote_path)
-        print 'Command:',cmd
+        print('Command:', cmd)
         commands.append({
             'command': cmd,
             'description': entry.display()
         })
     stream_commands(commands)
-    print green('Finished copying')
+    print(green('Finished copying'))
 
 
 def _run_ssh_command(entries, username, idfile, command, tunnel,
@@ -538,8 +542,8 @@ def _connect_ssh(entry, username, idfile, tunnel=None):
         raise ValueError("No hostname, public IP or private IP information "
                          "found on host entry. I don't know how to connect.")
     command = _build_ssh_command(_host, username, idfile, None, tunnel)
-    print 'Connecting to %s...' % cyan(entry.display())
-    print 'SSH command: %s' % green(command)
+    print('Connecting to %s...' % cyan(entry.display()))
+    print('SSH command: %s' % green(command))
     proc = subprocess.Popen(command, shell=True)
     return proc.wait()
 
@@ -547,7 +551,7 @@ def _connect_ssh(entry, username, idfile, tunnel=None):
 def _print_version():
     """Print the version and exit."""
     from __init__ import __version__
-    print __version__
+    print(__version__)
     sys.exit(0)
 
 

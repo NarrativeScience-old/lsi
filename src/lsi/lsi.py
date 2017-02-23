@@ -62,6 +62,7 @@ from __future__ import print_function
 import argparse
 import os
 from os.path import dirname, join, expanduser, exists
+import random as py_random
 import sys
 import subprocess
 
@@ -192,7 +193,8 @@ class LsiProfile(object):
 
 
 def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
-             show=None, only=None, sort_by=None, limit=None, tunnel=None):
+             show=None, only=None, sort_by=None, limit=None, tunnel=None,
+             random=False):
     """
     Lets the user choose which instance to SSH into.
 
@@ -214,6 +216,8 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
     :type sort_by: ``str``
     :param limit: At most how many results to show.
     :type limit: ``int`` or ``NoneType``
+    :param random: If true, choose a random entry from within filters.
+    :type random: ``bool``
     """
     _print_entries = True
     _print_help = False
@@ -221,11 +225,12 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
         exit('No entries matched the filters.')
     if no_prompt is True and command is not None:
         return _run_ssh_command(entries, username, idfile, command, tunnel)
-    elif len(entries) == 1:
+    elif len(entries) == 1 or random is True:
+        entry = py_random.choice(entries)
         if command is None:
-            return _connect_ssh(entries[0], username, idfile, tunnel)
+            return _connect_ssh(entry, username, idfile, tunnel)
         else:
-            return _run_ssh_command(entries, username, idfile, command, tunnel)
+            return _run_ssh_command([entry], username, idfile, command, tunnel)
     elif command is not None:
         print(HostEntry.render_entries(entries,
                                        additional_columns=show,
@@ -603,6 +608,8 @@ def _get_args():
                              'followed by the source and destination filenames')
     parser.add_argument('-t', '--tunnel', default=None,
                         help='Connect via the tunneled host.')
+    parser.add_argument("-r", "--random", action="store_true", default=False,
+                        help="Choose a random instance from within results.")
     args = parser.parse_args()
     if args.exclude is None:
         args.exclude = []
@@ -637,7 +644,8 @@ def main(progname=sys.argv[0]):
                  profile=profile)
     elif args.ssh is True or \
            args.username is not None or args.identity_file is not None or \
-           args.profile is not None or profile.command is not None:
+           args.profile is not None or profile.command is not None or \
+           args.random is True:
         _run_ssh(
             entries=entries,
             username=profile.username,
@@ -648,7 +656,8 @@ def main(progname=sys.argv[0]):
             only=args.only,
             sort_by=sort_by,
             limit=args.limit,
-            tunnel=args.tunnel
+            tunnel=args.tunnel,
+            random=args.random
         )
     elif args.sep is not None:
         for e in entries:

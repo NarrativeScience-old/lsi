@@ -8,6 +8,9 @@ with open("src/lsi/__init__.py") as f:
 setuptools.setup(
     name='lsi',
     version=__version__,
+    author="Narrative Science",
+    author_email="anelson@narrativescience.com",
+    url="https://github.com/NarrativeScience/lsi",
     package_dir={'': 'src'},
     packages=setuptools.find_packages('src'),
     provides=setuptools.find_packages('src'),

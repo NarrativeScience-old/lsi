@@ -194,7 +194,7 @@ class LsiProfile(object):
 
 def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
              show=None, only=None, sort_by=None, limit=None, tunnel=None,
-             random=False):
+             num=None, random=False):
     """
     Lets the user choose which instance to SSH into.
 
@@ -216,10 +216,12 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
     :type sort_by: ``str``
     :param limit: At most how many results to show.
     :type limit: ``int`` or ``NoneType``
+    :param num: If not None, choose the given entry from within filters.
+    :type num: ``int`` or ``NoneType``
     :param random: If true, choose a random entry from within filters.
     :type random: ``bool``
     """
-    _print_entries = True
+    _print_entries = num is None
     _print_help = False
     if len(entries) == 0:
         exit('No entries matched the filters.')
@@ -263,13 +265,20 @@ def _run_ssh(entries, username, idfile, no_prompt=False, command=None,
                 print('Set to run ssh command: %s' % cyan(command))
             msg = 'Enter command (%s for help, %s to quit): ' % (cyan('h'),
                                                                  cyan('q'))
-            choice = get_input(msg)
+            if num is not None:
+                choice = num
+            else:
+                choice = get_input(msg)
             if isinstance(choice, int):
                 if 0 <= choice <= len(entries):
                     break
                 else:
-                    msg = 'Invalid number: must be between 0 and %s'
-                    print(msg % (len(entries) - 1))
+                    if num is not None:
+                        exit("Invalid number {}: must be between 0 and {}"
+                             .format(num, len(entries) - 1))
+                    else:
+                        msg = "Invalid number: must be between 0 and %s"
+                        print(msg % (len(entries) - 1))
             elif choice == 'x':
                 if command is None:
                     print('No command has been set. Set command with `c`')
@@ -594,7 +603,7 @@ def _get_args():
                         help='Show ONLY these instance attributes')
     parser.add_argument('--sep', type=str, default=None,
                         help='Simple output with given separator')
-    parser.add_argument('--sort-by', type=str, default=None,
+    parser.add_argument('--sort-by', type=str, default="name",
                         help='What to sort list by')
     parser.add_argument('-L', '--limit', type=int, default=None,
                         help='Show at most this many entries')
@@ -610,6 +619,8 @@ def _get_args():
                         help='Connect via the tunneled host.')
     parser.add_argument("-r", "--random", action="store_true", default=False,
                         help="Choose a random instance from within results.")
+    parser.add_argument("-n", "--num", type=int, default=None,
+                        help="Choose the given number from within results.")
     args = parser.parse_args()
     if args.exclude is None:
         args.exclude = []
@@ -622,30 +633,32 @@ def _get_args():
 
 def main(progname=sys.argv[0]):
     args = _get_args()
+    if args.version is True:
+        _print_version()
     profile = LsiProfile.from_args(args)
     if args.host is not None:
         return get_host(args.host)
     # Either of these directives should force a refresh.
     latest = args.latest or args.refresh_only
     entries = get_entries(latest, profile.filters, profile.exclude)
-    if args.version is True:
-        _print_version()
     if args.refresh_only is True:
         print('Refreshed cache')
         return
-    sort_by = args.sort_by or "name"
+    entries = HostEntry.sort_by(entries, args.sort_by)
     if args.get is not None:
         _copy_from(entries, remote_path=args.get[0],
                    local_path=args.get[1],
                    profile=profile)
     elif args.put is not None:
+        if args.num is not None:
+            entries = [entries[args.num]]
         _copy_to(entries, local_path=args.put[0],
                  remote_path=args.put[1],
                  profile=profile)
     elif args.ssh is True or \
            args.username is not None or args.identity_file is not None or \
            args.profile is not None or profile.command is not None or \
-           args.random is True:
+           args.random is True or args.num is not None:
         _run_ssh(
             entries=entries,
             username=profile.username,
@@ -654,10 +667,11 @@ def main(progname=sys.argv[0]):
             command=profile.command,
             show=args.show,
             only=args.only,
-            sort_by=sort_by,
+            sort_by=args.sort_by,
             limit=args.limit,
             tunnel=args.tunnel,
-            random=args.random
+            random=args.random,
+            num=args.num,
         )
     elif args.sep is not None:
         for e in entries:
@@ -669,7 +683,6 @@ def main(progname=sys.argv[0]):
         print('The following attributes are available: {}'
               .format(', '.join(attribs)))
     else:
-        entries = HostEntry.sort_by(entries, sort_by)
         if args.limit is not None:
             entries = entries[:args.limit]
         print(HostEntry.render_entries(entries, additional_columns=args.show,

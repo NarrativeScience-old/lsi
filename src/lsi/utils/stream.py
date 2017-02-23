@@ -34,6 +34,12 @@ from lsi.utils.term import random_color, get_color_hash
 
 DEFAULT_COLOR = None
 
+def decode(string):
+    """Ensure that `string` is in unicode format."""
+    if hasattr(string, "decode"):
+        return string.decode("utf-8")
+    return string
+
 def stream_command(command, formatter=None, write_stdin=None, ignore_empty=False):
     """
     Starts `command` in a subprocess. Prints every line the command prints,
@@ -66,9 +72,9 @@ def stream_command(command, formatter=None, write_stdin=None, ignore_empty=False
             sys.exit('Keyboard interrupt while running {}'.format(command))
         if len(line.strip()) == 0 and ignore_empty is True:
             continue
-        elif 'killed by signal 1' in line.lower():
+        elif 'killed by signal 1' in decode(line).lower():
             continue
-        elif 'to the list of known hosts' in line.lower():
+        elif 'to the list of known hosts' in decode(line).lower():
             continue
         if formatter is not None:
             line = formatter(line)

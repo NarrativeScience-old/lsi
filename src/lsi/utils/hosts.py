@@ -26,28 +26,29 @@ from __future__ import print_function
 import inspect
 import json
 import os
-from os.path import dirname, join, expanduser, exists
+from os.path import dirname, join, expanduser, exists, isdir
 import re
 from datetime import datetime, timedelta
 import six
 import time
 
 import boto
+import boto.regioninfo
 
 from lsi.utils.term import (green, yellow, cyan, red, blue, get_input,
                             get_color_hash, get_current_terminal_width,
                             MIN_COLOR_BRIGHT, MAX_COLOR_BRIGHT)
 from lsi.utils.table import render_table, get_table_width
 
-# Location to read results from/write results to.
-CACHE_LOCATION = expanduser(os.environ.get('LSI_CACHE', '~/.lsi_cache.json'))
+# Cache directory to read results from/write results to.
+CACHE_DIRECTORY = expanduser(os.environ.get('LSI_CACHE', '~/.lsi_cache'))
 
 # Interval after which cache is considered invalid.
 _CACHE_DAYS = int(os.environ.get('LSI_CACHE_DAYS', 1))
 CACHE_EXPIRATION_INTERVAL = timedelta(days=_CACHE_DAYS)
 
-
 DEFAULT_ATTRIBUTES = os.environ.get("LSI_DEFAULT_ATTRIBUTES", "").lower()
+
 
 class HostEntry(object):
     """A selection of information about a host."""
@@ -455,16 +456,37 @@ def get_entries(latest, filters, exclude, limit=None):
         return filtered
 
 
+# Cached value set by `get_region`
+_REGION = None
+
+def get_region():
+    """Use the environment to get the current region"""
+    global _REGION
+    if _REGION is None:
+        region_name = os.getenv("AWS_DEFAULT_REGION") or "us-east-1"
+        region_dict = {r.name: r for r in boto.regioninfo.get_regions("ec2")}
+        if region_name not in region_dict:
+            raise ValueError("No such EC2 region: {}. Check AWS_DEFAULT_REGION "
+                             "environment variable".format(region_name))
+        _REGION = region_dict[region_name]
+    return _REGION
+
+
+def get_cache_location():
+    """Use the region name to get the location of the cache JSON file."""
+    region = get_region()
+    return join(CACHE_DIRECTORY, region.name + ".json")
+
+
 def _is_valid_cache():
     """
     Returns if the cache is valid (exists and modified within the interval).
-
     :return: Whether the cache is valid.
     :rtype: ``bool``
     """
-    if not os.path.exists(CACHE_LOCATION):
+    if not os.path.exists(get_cache_location()):
         return False
-    modified = os.path.getmtime(CACHE_LOCATION)
+    modified = os.path.getmtime(get_cache_location())
     modified = time.ctime(modified)
     modified = datetime.strptime(modified, '%a %b %d %H:%M:%S %Y')
     return datetime.now() - modified <= CACHE_EXPIRATION_INTERVAL
@@ -473,17 +495,18 @@ def _is_valid_cache():
 def _list_all_latest():
     """
     Gets the latest list from AWS, and writes to the cache.
-
     :return: A list of host entries.
     :rtype: [:py:class:`HostEntry`]
     """
     entries = []
-    ec2 = boto.connect_ec2()
+    ec2 = boto.connect_ec2(region=get_region())
     rs = ec2.get_all_instances(filters={'instance-state-name': 'running'})
     for r in rs:
         for inst in r.instances:
             entries.append(HostEntry.from_boto_instance(inst))
-    with open(CACHE_LOCATION, 'w') as f:
+    if not isdir(CACHE_DIRECTORY):
+        os.makedirs(CACHE_DIRECTORY)
+    with open(get_cache_location(), 'w') as f:
         entry_objs = [vars(e) for e in entries]
         f.write(json.dumps(entry_objs))
     return entries
@@ -492,11 +515,10 @@ def _list_all_latest():
 def _list_all_cached():
     """
     Reads the description cache, returning each instance's information.
-
     :return: A list of host entries.
     :rtype: [:py:class:`HostEntry`]
     """
-    with open(CACHE_LOCATION) as f:
+    with open(get_cache_location()) as f:
         contents = f.read()
         objects = json.loads(contents)
         return [HostEntry.from_dict(obj) for obj in objects]
@@ -531,7 +553,7 @@ def get_host(name):
     :type name: ``str``
     """
     f = {'instance-state-name': 'running', 'tag:Name': name}
-    ec2 = boto.connect_ec2()
+    ec2 = boto.connect_ec2(region=get_region())
     rs = ec2.get_all_instances(filters=f)
     if len(rs) == 0:
         raise Exception('Host "%s" not found' % name)
